@@ -31,7 +31,7 @@ def testImage():
 #__________________________/ Prueba con video /________________________________________
 
 def testVideo():
-    cap = cv2.VideoCapture("testVideos/colorSorting2.mp4")  # Usa "video.mp4" para archivo
+    cap = cv2.VideoCapture("testVideos/colorSorting2.mp4")  
 
     if not cap.isOpened():
         print("❌ No se pudo abrir la cámara o el archivo de video.")
@@ -39,7 +39,7 @@ def testVideo():
 
     while True:
         ret, frame = cap.read()
-        frame = cv2.resize(frame, (640, 360))  # o 320x240 si quieres más velocidad'
+        frame = cv2.resize(frame, (640, 360))  # bajar calidad (320x240) para mas velocidad 
         frame = cv2.GaussianBlur(frame, (5, 5), 0)
 
         if not ret:
@@ -50,9 +50,9 @@ def testVideo():
         mask = colorFilter.segmentRed(frame)
         mask_colored = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
-        # Visualización lado a lado
+        # Visualización
         combined = np.hstack((frame, mask_colored))
-        combined_resized = cv2.resize(combined, (800, 400))  # Ajusta el tamaño si deseas
+        combined_resized = cv2.resize(combined, (800, 400))  
 
         cv2.imshow("Video Original | Segmentación Roja", combined_resized)
 
