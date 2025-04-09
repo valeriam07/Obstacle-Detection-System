@@ -61,15 +61,17 @@ def segmentRed(image):
 
     # Preprocesamiento: normalizar y ecualizar
     h, s, v = cv2.split(hsv)
+    s = histogram_equalization(s)  # Ecualización del canal S
     v = histogram_equalization(v)  # Ecualizacion del canal V (brillo)
     enhanced_hsv = cv2.merge([h, s, v]) # Recombinar los tres canales del espacio de color HSV
 
     # Rangos de color rojo HSV (dos rangos de rojos) [Falta verificar el rango del rojo de las imagenes reales]
-    lower_red1 = np.array([0, 120, 70], np.uint8)   # Rojo oscuro
+    lower_red1 = np.array([0, 0, 0], np.uint8)
     upper_red1 = np.array([10, 255, 255], np.uint8)
 
-    lower_red2 = np.array([170, 120, 70], np.uint8) # Rojo brillante
+    lower_red2 = np.array([160, 20, 20], np.uint8)
     upper_red2 = np.array([180, 255, 255], np.uint8)
+
 
     # Create red masks and combine them
     mask1 = colorMask(enhanced_hsv, lower_red1, upper_red1)
@@ -78,25 +80,3 @@ def segmentRed(image):
 
     return red_mask
 
-# Cargar imagen (relative path)
-image = cv2.imread("testImages/rose.jpg")
-
-# Aplicar la segmentacion de color
-mask = segmentRed(image)
-
-# Convertir a escala de grises
-mask_colored = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-
-# Combinar imagenes
-combined = np.hstack((image, mask_colored))
-
-# Visualizacion de las imagenes (original y procesada)
-scale_percent = 50  # Escalar al 50% del tamaño original
-width = int(combined.shape[1] * scale_percent / 100)
-height = int(combined.shape[0] * scale_percent / 100)
-combined_resized = cv2.resize(combined, (width, height), interpolation=cv2.INTER_AREA)
-
-# Mostrar imagenes
-cv2.imshow("Imagen Original | Máscara Roja", combined_resized)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
