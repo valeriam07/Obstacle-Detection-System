@@ -31,7 +31,7 @@ def testImage():
 #__________________________/ Prueba con video /________________________________________
 
 def testVideo():
-    cap = cv2.VideoCapture("testVideos/colorSorting2.mp4")  
+    cap = cv2.VideoCapture("testVideos/rose.mp4")  
 
     if not cap.isOpened():
         print("❌ No se pudo abrir la cámara o el archivo de video.")
@@ -48,13 +48,24 @@ def testVideo():
 
         # Segmentación del color rojo
         mask = colorFilter.segmentRed(frame)
+
+        # Encontrar los contornos del obstáculo en la máscara
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Dibujar un rectángulo alrededor de cada contorno detectado
+        for contour in contours:
+            if cv2.contourArea(contour) > 500: 
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 255, 0), 2)  
+        
+        
         mask_colored = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
-        # Visualización
+        # Visualización comparativa
         combined = np.hstack((frame, mask_colored))
         combined_resized = cv2.resize(combined, (800, 400))  
 
-        cv2.imshow("Video Original | Segmentación Roja", combined_resized)
+        cv2.imshow("Obstaculos detectados | Segmentación Roja", combined_resized)
 
         # Salir con la tecla 'q'
         if cv2.waitKey(1) & 0xFF == ord('q'):
