@@ -123,3 +123,55 @@ def segmentRed(image):
 
     return red_mask
 
+# Comparar la máscara predicha con la ground truth (referencia), métricas promedio del video 
+def metrics(reference_path, predicted_masks):
+    """
+    param reference_path: directorio del video mascara de referencia (ground truth)
+    param predicted_masks: mascara calculada por segmentRed()
+    """
+    if not hasattr(metrics, "cap"):
+        metrics.cap = cv2.VideoCapture(reference_path)
+
+    total_TP = total_FP = total_FN = total_TN = 0
+    total_frames = len(predicted_masks)
+
+    for predicted_mask in predicted_masks:
+        ret_gt, gt_frame = metrics.cap.read()
+        if not ret_gt:
+            break
+
+        # Convertir ground truth a escala de grises si es necesario
+        if len(gt_frame.shape) == 3:
+            gt_mask = cv2.cvtColor(gt_frame, cv2.COLOR_BGR2GRAY)
+        else:
+            gt_mask = gt_frame
+
+        # Redimensionar ground truth si es necesario
+        if predicted_mask.shape != gt_mask.shape:
+            gt_mask = cv2.resize(gt_mask, (predicted_mask.shape[1], predicted_mask.shape[0]))
+
+        # Binarizar ambas máscaras (0 o 1)
+        y_true = (gt_mask > 127).astype(np.uint8)
+        y_pred = (predicted_mask > 127).astype(np.uint8)
+
+        # Contar los valores TP, TN, FP, FN
+        TP = np.sum((y_true == 1) & (y_pred == 1))
+        TN = np.sum((y_true == 0) & (y_pred == 0))
+        FP = np.sum((y_true == 0) & (y_pred == 1))
+        FN = np.sum((y_true == 1) & (y_pred == 0))
+
+        total_TP += TP
+        total_TN += TN
+        total_FP += FP
+        total_FN += FN
+
+    # Calcular las métricas promedio para todo el video
+    precision = total_TP / (total_TP + total_FP) if (total_TP + total_FP) != 0 else 0
+    recall = total_TP / (total_TP + total_FN) if (total_TP + total_FN) != 0 else 0
+    f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+    iou = total_TP / (total_TP + total_FP + total_FN) if (total_TP + total_FP + total_FN) != 0 else 0
+
+    return precision, recall, f1, iou
+
+
+

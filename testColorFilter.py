@@ -37,6 +37,7 @@ def testVideo():
         print("❌ No se pudo abrir la cámara o el archivo de video.")
         exit()
 
+    predicted_masks = []
     while True:
         ret, frame = cap.read()
         frame = cv2.resize(frame, (640, 360))  # bajar calidad (320x240) para mas velocidad 
@@ -48,7 +49,9 @@ def testVideo():
         # Segmentación del color rojo
         mask = colorFilter.segmentRed(frame)
         mask = colorFilter.filterByColorDensity(mask)
+        predicted_masks.append(mask)
 
+        # -- Visualizar obstaculos --
         # Encontrar los contornos del obstáculo en la máscara
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -73,5 +76,15 @@ def testVideo():
 
     cap.release()
     cv2.destroyAllWindows()
+
+
+    # --- Calculo de metricas de la mascara obtenida ---
+    metrics = colorFilter.metrics("refVideos/rose_mask.avi", predicted_masks)
+    precision, recall, f1, iou = metrics
+    print("\nMETRICAS GENERALES:")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall:    {recall:.4f}")
+    print(f"F1 Score:  {f1:.4f}")
+    print(f"IoU:       {iou:.4f}")
 
 testVideo()
