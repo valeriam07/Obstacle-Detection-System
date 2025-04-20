@@ -6,7 +6,7 @@ import colorFilter
 #___________________________________/ Prueba con imagenes /__________________________________
 def testImage():
     # Cargar imagen (relative path)
-    image = cv2.imread("testImages/rose.jpg")
+    image = cv2.imread("./samples/testImages/rose.jpg")
 
     # Aplicar la segmentacion de color
     mask = colorFilter.segmentRed(image)
@@ -31,7 +31,7 @@ def testImage():
 #__________________________/ Prueba con video /________________________________________
 
 def testVideo():
-    cap = cv2.VideoCapture("testVideos/rose.mp4")  
+    cap = cv2.VideoCapture("./samples/testVideos/rose.mp4")  
 
     if not cap.isOpened():
         print("❌ No se pudo abrir la cámara o el archivo de video.")
@@ -79,7 +79,7 @@ def testVideo():
 
 
     # --- Calculo de metricas de la mascara obtenida ---
-    metrics = colorFilter.metrics("refVideos/rose_mask.avi", predicted_masks)
+    metrics = colorFilter.metrics("./samples/refVideos/rose_mask.avi", predicted_masks)
     precision, recall, f1, iou = metrics
     print("\nMETRICAS GENERALES:")
     print(f"Precision: {precision:.4f}")
