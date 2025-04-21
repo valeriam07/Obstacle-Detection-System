@@ -81,6 +81,6 @@ plt.show()
 activated = activation_relu(response)
 
 plt.imshow(activated, cmap='gray')
-plt.title("Activación (umbral > 0.4)")
+plt.title("Activación")
 plt.colorbar()
 plt.show()
