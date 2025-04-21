@@ -102,19 +102,21 @@ def segmentRed(image):
     enhanced_hsv = cv2.merge([h, s, v]) # Recombinar los tres canales del espacio de color HSV
 
     # Rangos de rojo HSV utiles para entornos reales 
-    lower_red1 = np.array([0, 70, 50], np.uint8)    # Rojo puro con saturación mínima y valor mínimo
-    upper_red1 = np.array([10, 255, 255], np.uint8)  # Rojo claro, sin llegar al naranja
+    # lower_red1 = np.array([0, 70, 50], np.uint8)    # Rojo puro con saturación mínima y valor mínimo
+    # upper_red1 = np.array([10, 255, 255], np.uint8)  # Rojo claro, sin llegar al naranja
 
-    lower_red2 = np.array([160, 70, 50], np.uint8)
-    upper_red2 = np.array([180, 255, 255], np.uint8)
+    # lower_red2 = np.array([160, 70, 50], np.uint8)
+    # upper_red2 = np.array([180, 255, 255], np.uint8)
 
     # Rangos de rojo HSV utiles para imagenes mapa de color 
-    # lower_red1 = np.array([0, 0, 0], np.uint8)
-    # upper_red1 = np.array([10, 255, 255], np.uint8)
+    # Rango 1 - Tonos (H) del 0 al 10, para todas las saturaciones (S) y brillos (V)
+    lower_red1 = np.array([0, 0, 0], np.uint8) 
+    upper_red1 = np.array([10, 255, 255], np.uint8)
 
-    # # Rango 2 – Rojo apagado brillante/magenta
-    # lower_red2 = np.array([160, 20, 20], np.uint8)
-    # upper_red2 = np.array([180, 255, 255], np.uint8)
+    # Rango 2 – Tonos (H) del 160 al 180, para todas las saturaciones (S) y brillos (V)
+    lower_red2 = np.array([160, 0, 0], np.uint8)
+    upper_red2 = np.array([180, 255, 255], np.uint8)
+
 
     # Crear mascaras rojas y combinarlas
     mask1 = colorMask(enhanced_hsv, lower_red1, upper_red1)
