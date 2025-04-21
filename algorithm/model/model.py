@@ -40,8 +40,15 @@ def convolution(image_bgr, kernel_size=5, stride=1):
             row_out.append(score)
         out.append(row_out)
 
-    print(out)
     return np.array(out)
+
+# Etapa de activacion de la CNN
+def activation_relu(x):
+    """
+    :param x: respuesta de la convolucion 
+    """
+    return np.maximum(0, x)
+
 
 
 # --------------------- Cargar imagen ---------------------------------------
@@ -66,5 +73,14 @@ response = convolution(depth_colored_bgr, kernel_size=7, stride=3)
 
 plt.imshow(response)
 plt.title("Respuesta tipo convolución usando segmentRed")
+plt.colorbar()
+plt.show()
+
+#-------------------- Aplicar Activacion: Activacion de las neuronas segun ------------
+# ------------------- la suma ponderada de las entradas                    ------------
+activated = activation_relu(response)
+
+plt.imshow(activated, cmap='gray')
+plt.title("Activación (umbral > 0.4)")
 plt.colorbar()
 plt.show()
