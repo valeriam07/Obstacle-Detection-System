@@ -72,6 +72,90 @@ def pooling(input_array, pool_size=2, stride=2):
     
     return output
 
+# Funcion Softmax para calculo de probabilidades
+def softmax(x):
+    e_x = np.exp(x - np.max(x))  
+    return e_x / e_x.sum()
+
+# Etapa de clasificacion de la CNN: funcion softmax
+# La imagen se clasifica en un espacio de 9x9 regiones
+def classification(input_array):
+    """
+    :param input_array: np.array 2D con la salida de la etapa de pooling
+    """
+    h, w = input_array.shape
+
+    # Calcular las celdas, permitiendo que algunas sean mas grandes que otras,
+    # en caso de que la imagen no sea divisible por 9
+    cell_h = h // 9
+    cell_w = w // 9
+
+    # Si hay un residuo, distribuirlo entre las celdas de la ultima fila y columna
+    extra_h = h % 9
+    extra_w = w % 9
+
+    classification_output = np.zeros((9, 9), dtype=np.uint8)
+    
+    # Para cada espacio del grid 9x9 ...
+    for i in range(9):
+        for j in range(9):
+            # Ajustar el size de las celdas en la ultima fila/columna
+            start_h = i * cell_h + min(i, extra_h)
+            end_h = (i + 1) * cell_h + min(i + 1, extra_h)
+
+            start_w = j * cell_w + min(j, extra_w)
+            end_w = (j + 1) * cell_w + min(j + 1, extra_w)
+
+            # Cortar la celda
+            cell = input_array[start_h:end_h, start_w:end_w]
+            score = np.mean(cell)
+
+            # Clasificar celda
+            # Dos clases: clase 0 (libre), clase 1 (obstaculo)
+            logits = np.array([1.0 - score, score])
+            probs = softmax(logits)
+
+            # Se toma la clase con mayor probabilidad
+            prediction = np.argmax(probs)
+            classification_output[i, j] = prediction
+
+    return classification_output
+
+# Funcion para visualizar el resultado de la clasificacion
+def viewClassification(img, classified):
+    """
+    param img: copia de la imagen original con cmap (bgr)
+    param classified: resultado de la etapa de clasificacion 
+    """
+    h, w, _ = img.shape
+
+    # Calcular el size de las celdas
+    cell_h = h // 9
+    cell_w = w // 9
+
+    # Si hay un residuo, distribuirlo entre las celdas de la ultima fila y columna
+    extra_h = h % 9
+    extra_w = w % 9
+
+    # Dibujar las celdas
+    for i in range(9):
+        for j in range(9):
+            # Ajustar el size de las celdas en la última fila/columna
+            y1 = i * cell_h + min(i, extra_h)
+            y2 = (i + 1) * cell_h + min(i + 1, extra_h)
+            x1 = j * cell_w + min(j, extra_w)
+            x2 = (j + 1) * cell_w + min(j + 1, extra_w)
+
+            if classified[i, j] == 1:
+                cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)  # Azul para obstaculos
+            else:
+                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 1)  # Verde para celdas libres
+
+    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    plt.title("Imagen en regiones 9x9 con obstáculos clasificados")
+    plt.show()
+
+
 # --------------------- Cargar imagen ---------------------------------------
 
 img = cv2.imread("./dataset/pexels-110k-512p-min-jpg-depth/images/depth-1000171.jpeg", cv2.IMREAD_UNCHANGED)
@@ -115,3 +199,9 @@ plt.title("Pooling")
 plt.axis("off")
 plt.colorbar()
 plt.show()
+
+#------------------ Aplicar Clasificacion: Clasificar la imagen por regiones ------------- 
+#------------------ grid 9x9: 0 = no hay obstaculo, 1 = hay obstaculo        -------------
+classified = classification(pooled)
+img = depth_colored_bgr.copy()
+viewClassification(img, classified)
