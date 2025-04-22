@@ -50,6 +50,27 @@ def activation_relu(x):
     return np.maximum(0, x)
 
 
+# Etapa de pooling de la CNN: funcion max pooling
+def pooling(input_array, pool_size=2, stride=2):
+    """
+    :param input_array: np.array 2D con la salida de la activacion
+    :param pool_size: tamaño del parche
+    :param stride: cuantos pixeles se mueve el parche
+    """
+    h, w = input_array.shape # Size del input_array (height, width)
+
+    # Cuanto puede moverse el parche de pooling sin salir de la imagen 
+    out_h = (h - pool_size) // stride + 1
+    out_w = (w - pool_size) // stride + 1
+    
+    output = np.zeros((out_h, out_w))
+    
+    for i in range(0, h - pool_size + 1, stride):
+        for j in range(0, w - pool_size + 1, stride):
+            patch = input_array[i:i+pool_size, j:j+pool_size]
+            output[i//stride, j//stride] = np.max(patch) # Asignar el valor maximo en el parche
+    
+    return output
 
 # --------------------- Cargar imagen ---------------------------------------
 
@@ -64,9 +85,10 @@ depth_colored = cmap(depth_norm)[:, :, :3]
 depth_colored_rgb = (depth_colored * 255).astype(np.uint8)
 depth_colored_bgr = cv2.cvtColor(depth_colored_rgb, cv2.COLOR_RGB2BGR)
 
-# plt.imshow(depth_colored_rgb)
-# plt.title("Imagen original como colormap")
-# plt.show()
+plt.imshow(depth_colored_rgb)
+plt.title("Imagen original con colormap")
+plt.show()
+
 
 #------------------------ Aplicar Convolucion: Que tan roja es x region? --------------------
 response = convolution(depth_colored_bgr, kernel_size=7, stride=3)
@@ -82,5 +104,14 @@ activated = activation_relu(response)
 
 plt.imshow(activated, cmap='gray')
 plt.title("Activación")
+plt.colorbar()
+plt.show()
+
+#------------------ Aplicar Pooling: Agrupar informacion de la imagen -----------------
+pooled = pooling(activated, pool_size=2, stride=2)
+
+im2 = plt.imshow(pooled, cmap='hot')
+plt.title("Pooling")
+plt.axis("off")
 plt.colorbar()
 plt.show()
