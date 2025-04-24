@@ -51,5 +51,5 @@ plt.show()
 #------------------ Aplicar Clasificacion: Clasificar la imagen por regiones ------------- 
 #------------------ grid 9x9: 0 = no hay obstaculo, 1 = hay obstaculo        -------------
 classified = model.classification(pooled)
-img = depth_colored_bgr.copy()
+img = depth_colored_rgb.copy()
 model.viewClassification(img, classified)

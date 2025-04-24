@@ -2,10 +2,10 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-
 import sys
-sys.path.append("./algorithm")
-import colorFilter
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from algorithm import colorFilter
 
 # Etapa de convolucion de la CNN
 def convolution(image_bgr, kernel_size=5, stride=1):
@@ -151,7 +151,7 @@ def viewClassification(img, classified):
             else:
                 cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 1)  # Verde para celdas libres
 
-    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    plt.imshow(img)
     plt.title("Imagen en regiones 9x9 con obstáculos clasificados")
     plt.show()
 
