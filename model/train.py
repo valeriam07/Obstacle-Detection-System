@@ -50,7 +50,7 @@ def load_dataset(image_dir, mask_dir, limit=5):
         depth_colored_bgr = cv2.cvtColor(depth_colored_rgb, cv2.COLOR_RGB2BGR)
 
         # Redimensionar la imagen manteniendo la proporción
-        resized_image = resize_image(depth_colored_bgr, 64)
+        resized_image = resize_image(depth_colored_bgr, 99)
 
         # Redimensionar la máscara a las dimensiones de la imagen redimensionada
         resized_mask = cv2.resize(mask_gray, (resized_image.shape[1], resized_image.shape[0]), interpolation=cv2.INTER_NEAREST)
@@ -95,13 +95,13 @@ def convert_mask_to_grid(mask, target_shape=(9, 9)):
 
     return grid_gt
 
-W = np.random.randn(9, 9) * 0.01  # pesos al azar
-B = np.zeros((9, 9))              # sesgos inicializados en 0
+W = np.random.randn(9, 9) * 0.01  # Pesos aleatorios
+B = np.zeros((9, 9))  # Sesgos inicializados en 0
 all_preds = []
 all_gts = []
 
 # Funcion de entrenamiento del modelo CNN
-def train(dataset, epochs=5, lr=0.01):
+def train(dataset, epochs=5, lr=0.001):
     """
     :param dataset: conjunto de imagenes (original, mascara_gt)
     :param epochs: numero de epochs de entrenamiento
@@ -117,8 +117,13 @@ def train(dataset, epochs=5, lr=0.01):
             conv = model.convolution(image, kernel_size=7, stride=3)
             relu = model.activation_relu(conv)
             pooled = model.pooling(relu, pool_size=2, stride=2)
+
+            if pooled.shape[0] < 9 or pooled.shape[1] < 9:
+                print(f"[Info] Imagen omitida por size: {pooled.shape}")
+                continue
+
             classify = model.classification(pooled)
-            #model.viewClassification(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB), classify)
+            model.viewClassification(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB), classify)
 
             all_preds.append(classify) # Guardar el resultado de la clasificacion (prediccion)
 
@@ -128,17 +133,13 @@ def train(dataset, epochs=5, lr=0.01):
             all_gts.append(grid_gt) # Guardar el grid ground truth
 
             h, w = pooled.shape
-            cell_h = h // 9
-            cell_w = w // 9
-            extra_h = h % 9
-            extra_w = w % 9
+            h_indices = model.generate_cell_indices(h, 9)
+            w_indices = model.generate_cell_indices(w, 9)
             
-            for i in range(9):
-                for j in range(9):
-                    start_h = i * cell_h + min(i, extra_h)
-                    end_h = (i + 1) * cell_h + min(i + 1, extra_h)
-                    start_w = j * cell_w + min(j, extra_w)
-                    end_w = (j + 1) * cell_w + min(j + 1, extra_w)
+            image_loss = 0
+            # Para cada celda del grid 9x9...
+            for i, (start_h, end_h) in enumerate(h_indices):
+                for j, (start_w, end_w) in enumerate(w_indices):
 
                     cell = pooled[start_h:end_h, start_w:end_w]
                     score = np.mean(cell)
@@ -152,7 +153,11 @@ def train(dataset, epochs=5, lr=0.01):
                     # Perdida (cross-entropy)
                     y = grid_gt[i, j]
                     loss = -np.log(probs[y])
-                    total_loss += loss
+
+                    # Regularización L2 (Ridge)
+                    lambda_reg = 0.01  # Coeficiente de regularizacion
+                    reg_loss = lambda_reg * np.sum(np.square(W))  # Suma de los cuadrados de los pesos 
+                    image_loss += (loss + reg_loss)
 
                     # Gradientes simples (derivadas parciales)
                     grad = probs.copy()
@@ -165,17 +170,17 @@ def train(dataset, epochs=5, lr=0.01):
                     W[i, j] -= lr * dW
                     B[i, j] -= lr * dB
 
+            # Se promedia el loss para las 9x9 celdas en una imagen, correspondiente al loss promedio de esa imagen
+            total_loss += image_loss / (9 * 9)  # Promedio de las celdas
+            
         print(f"Epoch {epoch+1}: loss = {total_loss:.4f}")
     print("Entrenamiento finalizado, pesos W: ", W, ", pesos B: ", B)
     np.save("weights.npy", W)
     np.save("biases.npy", B)
 
-
-
+# Funcion para calcular metricas del entrenamiento (SKLearn)
 def calculate_metrics(all_preds, all_gts):
     """
-    Calcula las métricas de rendimiento (precisión, recall, F1) para todo el conjunto de entrenamiento.
-    
     :param all_preds: Lista de predicciones del modelo (9x9 grid)
     :param all_gts: Lista de etiquetas ground truth (9x9 grid)
     :return: Tuple de métricas (precisión, recall, F1, exactitud)
@@ -195,11 +200,10 @@ def calculate_metrics(all_preds, all_gts):
     return accuracy, precision, recall, f1
 
 
-
 image_dir = "./dataset/pexels-110k-512p-min-jpg-depth/images"
 mask_dir = "./dataset/pexels_groundTruth"
 
-dataset = load_dataset(image_dir, mask_dir, 10)
-train(dataset, epochs=10)
+dataset = load_dataset(image_dir, mask_dir, 2)
+train(dataset, epochs=10, lr=0.1)
 calculate_metrics(all_preds, all_gts)
 

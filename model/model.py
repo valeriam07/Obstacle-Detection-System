@@ -77,6 +77,25 @@ def softmax(x):
     e_x = np.exp(x - np.max(x))  
     return e_x / e_x.sum()
 
+# Funcion para generar los indices dividiendo una imagen celdas
+def generate_cell_indices(total_size, num_cells):
+    """
+    :param total_size: size que se quiere dividir en celdas, width o height
+    :param num_cells: numero de celdas en las que se quiere dividir
+    """
+    base = total_size // num_cells
+    remainder = total_size % num_cells
+
+    indices = []
+    current = 0
+    for i in range(num_cells):
+        extra = 1 if i < remainder else 0
+        start = current
+        end = start + base + extra
+        indices.append((start, end))
+        current = end
+    return indices
+
 # Etapa de clasificacion de la CNN: funcion softmax
 # La imagen se clasifica en un espacio de 9x9 regiones
 def classification(input_array):
@@ -84,27 +103,15 @@ def classification(input_array):
     :param input_array: np.array 2D con la salida de la etapa de pooling
     """
     h, w = input_array.shape
-
-    # Calcular las celdas, permitiendo que algunas sean mas grandes que otras,
-    # en caso de que la imagen no sea divisible por 9
-    cell_h = h // 9
-    cell_w = w // 9
-
-    # Si hay un residuo, distribuirlo entre las celdas de la ultima fila y columna
-    extra_h = h % 9
-    extra_w = w % 9
+    h_indices = generate_cell_indices(h, 9) # Obtener indices verticales del grid
+    w_indices = generate_cell_indices(w, 9) # Obtener indices horizontales del grid
 
     classification_output = np.zeros((9, 9), dtype=np.uint8)
-    
     # Para cada espacio del grid 9x9 ...
-    for i in range(9):
-        for j in range(9):
-            # Ajustar el size de las celdas en la ultima fila/columna
-            start_h = i * cell_h + min(i, extra_h)
-            end_h = (i + 1) * cell_h + min(i + 1, extra_h)
-
-            start_w = j * cell_w + min(j, extra_w)
-            end_w = (j + 1) * cell_w + min(j + 1, extra_w)
+    for i, (start_h, end_h) in enumerate(h_indices):
+        for j, (start_w, end_w) in enumerate(w_indices):
+            cell = input_array[start_h:end_h, start_w:end_w]
+            score = np.mean(cell)
 
             # Cortar la celda
             cell = input_array[start_h:end_h, start_w:end_w]
@@ -129,29 +136,22 @@ def viewClassification(img, classified):
     """
     h, w, _ = img.shape
 
-    # Calcular el size de las celdas
-    cell_h = h // 9
-    cell_w = w // 9
-
-    # Si hay un residuo, distribuirlo entre las celdas de la ultima fila y columna
-    extra_h = h % 9
-    extra_w = w % 9
+    # Generar índices para las celdas en la imagen
+    h_indices = generate_cell_indices(h, 9)
+    w_indices = generate_cell_indices(w, 9)
 
     # Dibujar las celdas
     for i in range(9):
         for j in range(9):
-            # Ajustar el size de las celdas en la última fila/columna
-            y1 = i * cell_h + min(i, extra_h)
-            y2 = (i + 1) * cell_h + min(i + 1, extra_h)
-            x1 = j * cell_w + min(j, extra_w)
-            x2 = (j + 1) * cell_w + min(j + 1, extra_w)
+            start_h, end_h = h_indices[i]
+            start_w, end_w = w_indices[j]
 
+            # Ajustar la celda con el valor clasificado
             if classified[i, j] == 1:
-                cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)  # Azul para obstaculos
+                cv2.rectangle(img, (start_w, start_h), (end_w, end_h), (255, 0, 0), 1)  # Azul para obstáculos
             else:
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 1)  # Verde para celdas libres
+                cv2.rectangle(img, (start_w, start_h), (end_w, end_h), (0, 255, 0), 1)  # Verde para celdas libres
 
     plt.imshow(img)
     plt.title("Imagen en regiones 9x9 con obstáculos clasificados")
     plt.show()
-

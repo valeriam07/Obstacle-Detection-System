@@ -6,7 +6,7 @@ import model
 
 # --------------------- Cargar imagen ---------------------------------------
 
-img = cv2.imread("./dataset/pexels-110k-512p-min-jpg-depth/images/depth-1000171.jpeg", cv2.IMREAD_UNCHANGED)
+img = cv2.imread("./dataset/pexels-110k-512p-min-jpg-depth/images/depth-1000129.jpeg", cv2.IMREAD_UNCHANGED)
 
 # Normalizar a 0–255
 depth_norm = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
