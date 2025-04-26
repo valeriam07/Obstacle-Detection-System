@@ -123,7 +123,7 @@ def train(dataset, epochs=5, lr=0.001):
                 continue
 
             classify = model.classification(pooled)
-            model.viewClassification(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB), classify)
+            #model.viewClassification(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB), classify)
 
             all_preds.append(classify) # Guardar el resultado de la clasificacion (prediccion)
 
@@ -173,7 +173,7 @@ def train(dataset, epochs=5, lr=0.001):
             # Se promedia el loss para las 9x9 celdas en una imagen, correspondiente al loss promedio de esa imagen
             total_loss += image_loss / (9 * 9)  # Promedio de las celdas
             
-        print(f"Epoch {epoch+1}: loss = {total_loss:.4f}")
+        print(f"Epoch {epoch+1}: average loss = {(total_loss/len(dataset)):.4f}")
     print("Entrenamiento finalizado, pesos W: ", W, ", pesos B: ", B)
     np.save("weights.npy", W)
     np.save("biases.npy", B)
@@ -203,7 +203,7 @@ def calculate_metrics(all_preds, all_gts):
 image_dir = "./dataset/pexels-110k-512p-min-jpg-depth/images"
 mask_dir = "./dataset/pexels_groundTruth"
 
-dataset = load_dataset(image_dir, mask_dir, 2)
-train(dataset, epochs=10, lr=0.1)
+dataset = load_dataset(image_dir, mask_dir, 50)
+train(dataset, epochs=10, lr=0.001)
 calculate_metrics(all_preds, all_gts)
 
