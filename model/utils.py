@@ -5,6 +5,25 @@ import model
 import os
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 
+# Funcion para generar los indices dividiendo una imagen celdas
+def generate_cell_indices(total_size, num_cells):
+    """
+    :param total_size: size que se quiere dividir en celdas, width o height
+    :param num_cells: numero de celdas en las que se quiere dividir
+    """
+    base = total_size // num_cells
+    remainder = total_size % num_cells
+
+    indices = []
+    current = 0
+    for i in range(num_cells):
+        extra = 1 if i < remainder else 0
+        start = current
+        end = start + base + extra
+        indices.append((start, end))
+        current = end
+    return indices
+
 def resize_image(image, target_height):
     # Obtener las dimensiones originales de la imagen
     original_height, original_width = image.shape[:2]
@@ -86,13 +105,11 @@ def convert_mask_to_grid(mask, target_shape=(9, 9)):
 
             cell = mask[start_h:end_h, start_w:end_w]
 
-            # Normalizar la celda 
-            cell_normalized = cell / 255.0  # Normalizar para que los valores estén entre 0 y 1
+            white_ratio = np.count_nonzero(cell == 255) / cell.size
 
-            # Si más del 10% de la celda tiene obstaculo, se considera clase 1
-            if np.mean(cell_normalized) > 0.1:
+            # Si más del 10% de la celda tiene blanco (obstaculo segmentado), se considera clase 1
+            if white_ratio > 0.1:
                 grid_gt[i, j] = 1
-
     return grid_gt
 
 # Funcion para calcular metricas del entrenamiento (SKLearn)

@@ -4,6 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 import sys
 import os
+import utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from algorithm import colorFilter
 
@@ -77,24 +78,6 @@ def softmax(x):
     e_x = np.exp(x - np.max(x))  
     return e_x / e_x.sum()
 
-# Funcion para generar los indices dividiendo una imagen celdas
-def generate_cell_indices(total_size, num_cells):
-    """
-    :param total_size: size que se quiere dividir en celdas, width o height
-    :param num_cells: numero de celdas en las que se quiere dividir
-    """
-    base = total_size // num_cells
-    remainder = total_size % num_cells
-
-    indices = []
-    current = 0
-    for i in range(num_cells):
-        extra = 1 if i < remainder else 0
-        start = current
-        end = start + base + extra
-        indices.append((start, end))
-        current = end
-    return indices
 
 # Etapa de clasificacion de la CNN: funcion softmax
 # La imagen se clasifica en un espacio de 9x9 regiones
@@ -103,8 +86,8 @@ def classification(input_array):
     :param input_array: np.array 2D con la salida de la etapa de pooling
     """
     h, w = input_array.shape
-    h_indices = generate_cell_indices(h, 9) # Obtener indices verticales del grid
-    w_indices = generate_cell_indices(w, 9) # Obtener indices horizontales del grid
+    h_indices = utils.generate_cell_indices(h, 9) # Obtener indices verticales del grid
+    w_indices = utils.generate_cell_indices(w, 9) # Obtener indices horizontales del grid
 
     classification_output = np.zeros((9, 9), dtype=np.uint8)
     # Para cada espacio del grid 9x9 ...
@@ -137,8 +120,8 @@ def viewClassification(img, classified):
     h, w, _ = img.shape
 
     # Generar índices para las celdas en la imagen
-    h_indices = generate_cell_indices(h, 9)
-    w_indices = generate_cell_indices(w, 9)
+    h_indices = utils.generate_cell_indices(h, 9)
+    w_indices = utils.generate_cell_indices(w, 9)
 
     # Dibujar las celdas
     for i in range(9):

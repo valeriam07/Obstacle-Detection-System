@@ -30,10 +30,10 @@ def train(dataset, epochs=5, lr=0.001):
                 print(f"[Info] Imagen omitida por size: {pooled.shape}")
                 continue
 
-            classify = model.classification(pooled)
+            #classify = model.classification(pooled)
             #model.viewClassification(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB), classify)
 
-            all_preds.append(classify) # Guardar el resultado de la clasificacion (prediccion)
+            #all_preds.append(classify) # Guardar el resultado de la clasificacion (prediccion)
 
             # Redimensionar la mascara a size del pooling
             resized_mask = cv2.resize(mask_gt, (pooled.shape[1], pooled.shape[0]), interpolation=cv2.INTER_NEAREST)
@@ -41,10 +41,11 @@ def train(dataset, epochs=5, lr=0.001):
             all_gts.append(grid_gt) # Guardar el grid ground truth
 
             h, w = pooled.shape
-            h_indices = model.generate_cell_indices(h, 9)
-            w_indices = model.generate_cell_indices(w, 9)
+            h_indices = utils.generate_cell_indices(h, 9)
+            w_indices = utils.generate_cell_indices(w, 9)
             
             image_loss = 0
+            prediction_grid = np.zeros((9, 9), dtype=np.uint8)
             # Para cada celda del grid 9x9...
             for i, (start_h, end_h) in enumerate(h_indices):
                 for j, (start_w, end_w) in enumerate(w_indices):
@@ -57,6 +58,8 @@ def train(dataset, epochs=5, lr=0.001):
                     z1 = score
                     logit = W[i, j] * z1 + B[i, j]
                     probs = model.softmax([z0, logit])
+
+                    prediction_grid[i, j] = np.argmax(probs)
 
                     # Perdida (cross-entropy)
                     y = grid_gt[i, j]
@@ -80,14 +83,15 @@ def train(dataset, epochs=5, lr=0.001):
 
             # Se promedia el loss para las 9x9 celdas en una imagen, correspondiente al loss promedio de esa imagen
             total_loss += image_loss / (9 * 9)  # Promedio de las celdas
+            all_preds.append(prediction_grid)
+            #model.viewClassification(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB), prediction_grid)
             
         print(f"Epoch {epoch+1}: average loss = {(total_loss/len(dataset)):.4f}")
     print("Entrenamiento finalizado, pesos W: ", W, ", pesos B: ", B)
     np.save("weights.npy", W)
     np.save("biases.npy", B)
 
-
-
+#image_dir = "./dataset/pexels_test"
 image_dir = "./dataset/pexels-110k-512p-min-jpg-depth/images"
 mask_dir = "./dataset/pexels_groundTruth"
 
