@@ -91,11 +91,10 @@ def train(dataset, epochs=5, lr=0.001):
     np.save("weights.npy", W)
     np.save("biases.npy", B)
 
-#image_dir = "./dataset/pexels_test"
 image_dir = "./dataset/pexels-110k-512p-min-jpg-depth/images"
 mask_dir = "./dataset/pexels_groundTruth"
 
-dataset = utils.load_dataset(image_dir, mask_dir, 50)
+dataset = utils.load_dataset(image_dir, mask_dir, 300)
 train(dataset, epochs=10, lr=0.001)
 utils.calculate_metrics(all_preds, all_gts)
 
