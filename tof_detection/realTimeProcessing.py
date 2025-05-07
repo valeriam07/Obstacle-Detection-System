@@ -1,7 +1,13 @@
 import cv2
 import numpy as np
 import time
-from model import model, utils
+import sys
+import os
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
+sys.path.append(parent_dir)
+import model,utils
+
 import ArducamDepthCamera as ac  
 
 MAX_DISTANCE = 4000  # Distancia máxima de detección en mm
@@ -45,8 +51,8 @@ def main():
     r = cam.getControl(ac.Control.RANGE)
 
     print("Cargando pesos...")
-    W = np.load("weights.npy")
-    B = np.load("biases.npy")
+    W = np.load("../model/saved_models/v4/weights.npy")
+    B = np.load("../model/saved_models/v4/biases.npy")
 
     print("Presiona 'q' para salir.")
 
@@ -58,7 +64,7 @@ def main():
             colorized = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
 
             # Predecir grid 9x9
-            conv = model.convolution(colorized, kernel_size=7, stride=3)
+            conv = model.convolution_alt(colorized, kernel_size=7, stride=3)
             relu = model.activation_relu(conv)
             pooled = model.pooling(relu, pool_size=2, stride=2)
 
