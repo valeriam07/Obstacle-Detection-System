@@ -43,6 +43,30 @@ def convolution(image_bgr, kernel_size=5, stride=1):
 
     return np.array(out)
 
+# Funcion de convolucion sin utilizar tensorflow (Opcion para RaspberryPi)
+def convolution_alt(image_bgr, kernel_size=5, stride=1):
+    """
+    Aplica una "convolución" manual sobre la imagen usando color rojo como filtro.
+    :param image_bgr: Imagen de entrada (H, W, 3)
+    :param kernel_size: Tamaño del parche (ej. 5x5)
+    :param stride: Paso de la ventana deslizante
+    :return: Mapa 2D de scores de "rojez"
+    """
+    H, W, _ = image_bgr.shape
+    out = []
+
+    for y in range(0, H - kernel_size + 1, stride):
+        row = []
+        for x in range(0, W - kernel_size + 1, stride):
+            patch = image_bgr[y:y+kernel_size, x:x+kernel_size]
+            mask = colorFilter.segmentRed(patch)  # Devuelve máscara binaria
+            score = np.mean(mask) / 255.0  # Normaliza entre 0 y 1
+            row.append(score)
+        out.append(row)
+
+    return np.array(out)
+
+
 # Etapa de activacion de la CNN
 def activation_relu(x):
     """
