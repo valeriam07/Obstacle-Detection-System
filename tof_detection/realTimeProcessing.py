@@ -1,0 +1,100 @@
+import cv2
+import numpy as np
+import time
+from model import model, utils
+import ArducamDepthCamera as ac  
+
+MAX_DISTANCE = 4000  # Distancia máxima de detección en mm
+GRID_SIZE = 9        # Grid 9x9
+
+def draw_grid_overlay(image, prediction_grid):
+    h, w, _ = image.shape
+    cell_h = h // GRID_SIZE
+    cell_w = w // GRID_SIZE
+
+    for i in range(GRID_SIZE):
+        for j in range(GRID_SIZE):
+            y1 = i * cell_h
+            y2 = (i + 1) * cell_h
+            x1 = j * cell_w
+            x2 = (j + 1) * cell_w
+
+            color = (0, 255, 0)  # Verde por defecto
+            if prediction_grid[i, j] == 1:
+                color = (0, 0, 255)  # Rojo si hay obstáculo
+
+            cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+
+    return image
+
+def main():
+    print("Inicializando camara ToF...")
+    cam = ac.ArducamCamera()
+    ret = cam.open(ac.Connection.CSI, 0)
+    if ret != 0:
+        print("Error al abrir la camara:", ret)
+        return
+
+    ret = cam.start(ac.FrameType.DEPTH)
+    if ret != 0:
+        print("Error al iniciar la camara:", ret)
+        cam.close()
+        return
+    
+    cam.setControl(ac.Control.RANGE, MAX_DISTANCE)
+    r = cam.getControl(ac.Control.RANGE)
+
+    print("Cargando pesos...")
+    W = np.load("weights.npy")
+    B = np.load("biases.npy")
+
+    print("Presiona 'q' para salir.")
+
+    while True:
+        frame = cam.requestFrame(2000)
+        if frame and isinstance(frame, ac.DepthData):
+            depth_buf = frame.depth_data
+            depth_image = (depth_buf * (255.0 / r)).astype(np.uint8)
+            colorized = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
+
+            # Predecir grid 9x9
+            conv = model.convolution(colorized, kernel_size=7, stride=3)
+            relu = model.activation_relu(conv)
+            pooled = model.pooling(relu, pool_size=2, stride=2)
+
+            if pooled.shape[0] < GRID_SIZE or pooled.shape[1] < GRID_SIZE:
+                print("[Info] Frame omitido por tamaño pequeño.")
+                cam.releaseFrame(frame)
+                continue
+
+            h_idx = utils.generate_cell_indices(pooled.shape[0], GRID_SIZE)
+            w_idx = utils.generate_cell_indices(pooled.shape[1], GRID_SIZE)
+            prediction_grid = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.uint8)
+
+            for i, (sh, eh) in enumerate(h_idx):
+                for j, (sw, ew) in enumerate(w_idx):
+                    cell = pooled[sh:eh, sw:ew]
+                    score = np.mean(cell)
+                    z0 = 1.0 - score
+                    z1 = score
+                    logit = W[i, j] * z1 + B[i, j]
+                    probs = model.softmax([z0, logit])
+                    prediction_grid[i, j] = np.argmax(probs)
+
+            # Dibujar celdas
+            result = draw_grid_overlay(colorized.copy(), prediction_grid)
+
+            # Mostrar en ventana
+            cv2.imshow("ToF Grid Detection", result)
+            cam.releaseFrame(frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    cam.stop()
+    cam.close()
+    cv2.destroyAllWindows()
+    print("Finalizado.")
+
+if __name__ == "__main__":
+    main()
