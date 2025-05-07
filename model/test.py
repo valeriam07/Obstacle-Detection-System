@@ -5,7 +5,7 @@ import model, utils
 import os
 
 # Modulo de prediccion CNN a partir del modelo entrenado
-def predict(test_images, weights_path="weights.npy", bias_path="biases.npy", limit=10):
+def predict(test_images, weights_path="weights.npy", bias_path="biases.npy"):
     """
     Realiza la predicción sobre nuevas imagenes usando los pesos entrenados
     :param test_images: Directorio de imágenes a predecir
@@ -51,7 +51,7 @@ def predict(test_images, weights_path="weights.npy", bias_path="biases.npy", lim
         # Guardar prediccion de la imagen
         all_preds.append(prediction_grid)
         # Visualizar
-        model.viewClassification(cv2.cvtColor(img.copy(), cv2.COLOR_BGR2RGB), prediction_grid)
+        #model.viewClassification(cv2.cvtColor(img.copy(), cv2.COLOR_BGR2RGB), prediction_grid)
     return all_preds
 
 # Evaluar predicciones 
@@ -60,11 +60,11 @@ def evaluate_prediction(masks, preds):
     for mask, pred in zip(masks, preds): 
         # Calcular los grids del ground truth
         grid_gt = utils.convert_mask_to_grid(mask)
-        print(f"Ground truth grid:\n{grid_gt}")
+        #print(f"Ground truth grid:\n{grid_gt}")
         all_gts.append(grid_gt)  
         
         # Visualizar ground truth
-        model.viewClassification(cv2.cvtColor(mask.copy(), cv2.COLOR_BGR2RGB), grid_gt)
+        #model.viewClassification(cv2.cvtColor(mask.copy(), cv2.COLOR_BGR2RGB), grid_gt)
 
     # Calcular las metricas de la prediccion 
     utils.calculate_metrics(all_gts, preds)
@@ -74,12 +74,12 @@ def evaluate_prediction(masks, preds):
 image_dir = "./dataset/pexels_test"
 mask_dir = "./dataset/pexels_groundTruth"
 
-dataset = utils.load_dataset(image_dir, mask_dir, 1)
+dataset = utils.load_dataset(image_dir, mask_dir, 50)
 imgs, masks = zip(*dataset)
 
 imgs = list(imgs)
 masks = list(masks)
 
-preds = predict(imgs, limit=5)
+preds = predict(imgs, weights_path="model/saved_models/v1/weights.npy", bias_path="model/saved_models/v1/biases.npy")
 evaluate_prediction(masks, preds)
 
