@@ -35,7 +35,7 @@ def draw_grid_overlay(image, prediction_grid):
     return image
 
 # Forma de visualizar los obstaculos detectados: marca el area donde hay obstaculo
-def draw_obstacle_overlay(image, prediction_grid):
+def draw_obstacle_overlay(image, prediction_grid, obstacle_distances):
     h, w, _ = image.shape
     cell_h = h // GRID_SIZE
     cell_w = w // GRID_SIZE
@@ -50,9 +50,22 @@ def draw_obstacle_overlay(image, prediction_grid):
                 x2 = (j + 1) * cell_w
                 obstacle_rectangles.append((x1, y1, x2, y2))
 
-    for (x1, y1, x2, y2) in obstacle_rectangles:
-        cv2.rectangle(image, (x1, y1), (x2, y2), (255, 255, 0), 1)  # Rectangulo celeste
+                # Dibujar rectangulo celeste
+                cv2.rectangle(image, (x1, y1), (x2, y2), (255, 255, 0), 1)
 
+                # Mostrar distancia de las celdas con obstaculo
+                if obstacle_distances[i,j] >= 0:
+                    dist = obstacle_distances[i, j]
+                    cv2.putText(
+                        image,
+                        f"{dist:.2f} m",
+                        (x1 + 2, y1 + 12),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.1,
+                        (255, 255, 255),
+                        1,
+                        cv2.LINE_AA
+                    )
     return image
 
 def main():
@@ -80,17 +93,15 @@ def main():
     
     prev_time = time.time()
     
-    # Establecer el size de la ventana
-    cv2.namedWindow("ToF Grid Detection", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("ToF Grid Detection", 1024, 768)  
-    
     while True:
         frame = cam.requestFrame(2000)
         
         if frame and isinstance(frame, ac.DepthData):
             depth_buf = frame.depth_data
+            depth_meters = depth_buf / 1000.0  # convertir a metros
             depth_image = (depth_buf * (255.0 / r)).astype(np.uint8)
             colorized = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
+            
             colorized_resized = cv2.resize(colorized, (120, 90))  #(width,height), original shape = (height=240, width=180)
 
             # Predecir grid 9x9
@@ -106,7 +117,9 @@ def main():
             h_idx = utils.generate_cell_indices(pooled.shape[0], GRID_SIZE)
             w_idx = utils.generate_cell_indices(pooled.shape[1], GRID_SIZE)
             prediction_grid = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.uint8)
-
+            
+            obstacle_distances = np.full((GRID_SIZE, GRID_SIZE), -1.0)
+            
             for i, (sh, eh) in enumerate(h_idx):
                 for j, (sw, ew) in enumerate(w_idx):
                     cell = pooled[sh:eh, sw:ew]
@@ -115,10 +128,17 @@ def main():
                     z1 = score
                     logit = W[i, j] * z1 + B[i, j]
                     probs = model.softmax([z0, logit])
-                    prediction_grid[i, j] = np.argmax(probs)
+                    pred = np.argmax(probs)
+                    prediction_grid[i, j] = pred
+                    
+                    if pred == 1:  # 1 indica obstaculo
+                        # Extraer distancia promedio de la celda original
+                        depth_cell = depth_meters[sh*5:eh*5, sw*5:ew*5]  # Escalar a la imagen original
+                        distance = np.mean(depth_cell)
+                        obstacle_distances[i, j] = distance
 
             # Dibujar celdas
-            result = draw_obstacle_overlay(colorized.copy(), prediction_grid)
+            result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
             
             # Medir FPS
             curr_time = time.time()
@@ -130,6 +150,8 @@ def main():
 
 
             # Mostrar en ventana
+            cv2.namedWindow("ToF Grid Detection", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("ToF Grid Detection", 960, 720)  
             cv2.imshow("ToF Grid Detection", result)
             cam.releaseFrame(frame)
 
@@ -139,7 +161,6 @@ def main():
     cam.stop()
     cam.close()
     cv2.destroyAllWindows()
-    print("Finalizado.")
 
 if __name__ == "__main__":
     main()
