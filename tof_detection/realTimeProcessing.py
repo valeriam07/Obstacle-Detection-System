@@ -145,7 +145,8 @@ def main():
             result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
             
             # Capturar y guardar resultado
-            out.write(result)
+            frame_resized = cv2.resize(result, (800, 600))
+            out.write(frame_resized)
             
             # Medir FPS
             curr_time = time.time()
