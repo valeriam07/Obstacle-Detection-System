@@ -96,7 +96,12 @@ def main():
     out_path = "output/Arducam_out.avi"
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(out_path, fourcc, 8, (800, 600))
+    last_write_time = time.time()
     
+    # Vaciar el archivo antes de comenzar
+    with open("output/prediction_grid_log.txt", "w") as f:
+        pass 
+
     while True:
         frame = cam.requestFrame(2000)
         
@@ -143,6 +148,16 @@ def main():
 
             # Dibujar celdas
             result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
+            
+            # Guardar matriz de distancias de los obstaculos en un txt
+            current_time = time.time()
+            if current_time - last_write_time >= 5: # Cada 5s
+                with open("output/prediction_grid_log.txt", "a") as f:
+                    for row in obstacle_distances:
+                        f.write(" ".join(map(str, row)) + "\n")
+                    f.write("\n")  # Linea vacia entre matrices
+                last_write_time = current_time
+
             
             # Capturar y guardar resultado
             frame_resized = cv2.resize(result, (800, 600))
