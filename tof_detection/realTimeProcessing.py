@@ -61,7 +61,7 @@ def draw_obstacle_overlay(image, prediction_grid, obstacle_distances):
                         f"{dist:.2f} m",
                         (x1 + 2, y1 + 12),
                         cv2.FONT_HERSHEY_SIMPLEX,
-                        0.1,
+                        0.2,
                         (255, 255, 255),
                         1,
                         cv2.LINE_AA
@@ -92,6 +92,10 @@ def main():
     print("Presiona 'q' para salir.")
     
     prev_time = time.time()
+    
+    out_path = "output/Arducam_out.avi"
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    out = cv2.VideoWriter(out_path, fourcc, 8, (800, 600))
     
     while True:
         frame = cam.requestFrame(2000)
@@ -140,6 +144,9 @@ def main():
             # Dibujar celdas
             result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
             
+            # Capturar y guardar resultado
+            out.write(result)
+            
             # Medir FPS
             curr_time = time.time()
             fps = 1 / (curr_time - prev_time)
@@ -151,11 +158,12 @@ def main():
 
             # Mostrar en ventana
             cv2.namedWindow("ToF Grid Detection", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("ToF Grid Detection", 960, 720)  
+            cv2.resizeWindow("ToF Grid Detection", 800, 600)  
             cv2.imshow("ToF Grid Detection", result)
             cam.releaseFrame(frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                out.release()
                 break
 
     cam.stop()
