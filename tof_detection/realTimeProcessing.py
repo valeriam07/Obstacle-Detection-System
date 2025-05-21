@@ -67,8 +67,65 @@ def draw_obstacle_overlay(image, prediction_grid, obstacle_distances):
                         cv2.LINE_AA
                     )
     return image
+    
+def show_fps(prev_time, result):
+    # Medir FPS
+    curr_time = time.time()
+    fps = 1 / (curr_time - prev_time)
+    prev_time = curr_time
 
-def main():
+    # Mostrar FPS en la imagen
+    cv2.putText(result, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+    
+    return prev_time
+    
+def get_cell_distance(depth_meters,sh,eh,sw,ew):
+    # Extraer distancia promedio de la celda original
+    depth_cell = depth_meters[sh*5:eh*5, sw*5:ew*5]  # Escalar a la imagen original
+    distance = np.mean(depth_cell)
+    
+    return distance
+
+def predictFrame(frame, r, W, B):
+    depth_buf = frame.depth_data
+    depth_meters = depth_buf / 1000.0  # convertir a metros
+    depth_image = (depth_buf * (255.0 / r)).astype(np.uint8)
+    colorized = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
+    
+    colorized_resized = cv2.resize(colorized, (120, 90))  #(width,height), original shape = (height=240, width=180)
+    
+    # Predecir grid 9x9
+    conv = model.convolution_alt(colorized_resized, kernel_size=3, stride=5)
+    relu = model.activation_relu(conv)
+    pooled = model.pooling(relu, pool_size=2, stride=2)
+
+    h_idx = utils.generate_cell_indices(pooled.shape[0], GRID_SIZE)
+    w_idx = utils.generate_cell_indices(pooled.shape[1], GRID_SIZE)
+    prediction_grid = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.uint8)
+    
+    obstacle_distances = np.full((GRID_SIZE, GRID_SIZE), -1.0)
+    
+    # sh = start height
+    # eh = end height
+    # sw = start width
+    # ew = end width 
+    for i, (sh, eh) in enumerate(h_idx):
+        for j, (sw, ew) in enumerate(w_idx):
+            cell = pooled[sh:eh, sw:ew]
+            score = np.mean(cell)
+            z0 = 1.0 - score
+            z1 = score
+            logit = W[i, j] * z1 + B[i, j]
+            probs = model.softmax([z0, logit])
+            pred = np.argmax(probs)
+            prediction_grid[i, j] = pred
+            
+            if pred == 1:  # 1 indica obstaculo
+                obstacle_distances[i, j] = get_cell_distance(depth_meters,sh,eh,sw,ew)
+            
+    return colorized, prediction_grid, obstacle_distances
+    
+def start_detection():
     print("Inicializando camara ToF...")
     cam = ac.ArducamCamera()
     ret = cam.open(ac.Connection.CSI, 0)
@@ -106,47 +163,10 @@ def main():
         frame = cam.requestFrame(2000)
         
         if frame and isinstance(frame, ac.DepthData):
-            depth_buf = frame.depth_data
-            depth_meters = depth_buf / 1000.0  # convertir a metros
-            depth_image = (depth_buf * (255.0 / r)).astype(np.uint8)
-            colorized = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
+            # Predecir frame
+            colorized, prediction_grid, obstacle_distances = predictFrame(frame, r, W, B)
             
-            colorized_resized = cv2.resize(colorized, (120, 90))  #(width,height), original shape = (height=240, width=180)
-
-            # Predecir grid 9x9
-            conv = model.convolution_alt(colorized_resized, kernel_size=3, stride=5)
-            relu = model.activation_relu(conv)
-            pooled = model.pooling(relu, pool_size=2, stride=2)
-
-            if pooled.shape[0] < GRID_SIZE or pooled.shape[1] < GRID_SIZE:
-                print("[Info] Frame omitido por tamaño pequeño.")
-                cam.releaseFrame(frame)
-                continue
-
-            h_idx = utils.generate_cell_indices(pooled.shape[0], GRID_SIZE)
-            w_idx = utils.generate_cell_indices(pooled.shape[1], GRID_SIZE)
-            prediction_grid = np.zeros((GRID_SIZE, GRID_SIZE), dtype=np.uint8)
-            
-            obstacle_distances = np.full((GRID_SIZE, GRID_SIZE), -1.0)
-            
-            for i, (sh, eh) in enumerate(h_idx):
-                for j, (sw, ew) in enumerate(w_idx):
-                    cell = pooled[sh:eh, sw:ew]
-                    score = np.mean(cell)
-                    z0 = 1.0 - score
-                    z1 = score
-                    logit = W[i, j] * z1 + B[i, j]
-                    probs = model.softmax([z0, logit])
-                    pred = np.argmax(probs)
-                    prediction_grid[i, j] = pred
-                    
-                    if pred == 1:  # 1 indica obstaculo
-                        # Extraer distancia promedio de la celda original
-                        depth_cell = depth_meters[sh*5:eh*5, sw*5:ew*5]  # Escalar a la imagen original
-                        distance = np.mean(depth_cell)
-                        obstacle_distances[i, j] = distance
-
-            # Dibujar celdas
+            # Dibujar resultado 
             result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
             
             # Guardar matriz de distancias de los obstaculos en un txt
@@ -159,25 +179,19 @@ def main():
                 last_write_time = current_time
 
             
-            # Capturar y guardar resultado
+            # Guardar resultado de video
             frame_resized = cv2.resize(result, (800, 600))
             out.write(frame_resized)
             
-            # Medir FPS
-            curr_time = time.time()
-            fps = 1 / (curr_time - prev_time)
-            prev_time = curr_time
+            # Mostrar FPS 
+            prev_time = show_fps(prev_time, result)
 
-            # Mostrar FPS en la imagen
-            cv2.putText(result, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
-
-
-            # Mostrar en ventana
+            # Mostrar ventana en tiempo real 
             cv2.namedWindow("ToF Grid Detection", cv2.WINDOW_NORMAL)
             cv2.resizeWindow("ToF Grid Detection", 800, 600)  
             cv2.imshow("ToF Grid Detection", result)
             cam.releaseFrame(frame)
-
+            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 out.release()
                 break
@@ -186,5 +200,3 @@ def main():
     cam.close()
     cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    main()
