@@ -1,7 +1,7 @@
 import realTimeProcessing as rtp
 
 def main():
-	mode = "FAR"
+	mode = "CLOSE"
 	rtp.start_detection(mode)
 	
 if __name__ == "__main__":

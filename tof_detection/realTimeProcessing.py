@@ -81,12 +81,27 @@ def show_fps(prev_time, result):
     
     return prev_time
     
-def get_cell_distance(depth_meters,sh,eh,sw,ew):
-    # Extraer distancia promedio de la celda original
-    depth_cell = depth_meters[sh*5:eh*5, sw*5:ew*5]  # Escalar a la imagen original
-    distance = np.mean(depth_cell)
+def get_cell_distance(depth_meters, i, j):
+    # dimensiones de la matriz
+    height, width = depth_meters.shape 
+    cell_h = height // GRID_SIZE
+    cell_w = width // GRID_SIZE
     
+    # coordenadas verticales
+    y1 = i * cell_h
+    y2 = (i + 1) * cell_h if i < GRID_SIZE - 1 else height
+    
+    # coordenadas horizontales
+    x1 = j * cell_w
+    x2 = (j + 1) * cell_w if j < GRID_SIZE - 1 else width
+    
+    # Porcion de la matriz de profundidad de las celdas
+    depth_cell = depth_meters[y1:y2, x1:x2]
+    
+    # Distancia promedio en metros
+    distance = np.mean(depth_cell)
     return distance
+
 
 def predictFrame(frame, r, W, B, mode):
     depth_buf = frame.depth_data
@@ -140,7 +155,7 @@ def predictFrame(frame, r, W, B, mode):
             prediction_grid[i, j] = pred
             
             if pred == 1:  # 1 indica obstaculo
-                obstacle_distances[i, j] = get_cell_distance(depth_meters,sh,eh,sw,ew)
+                obstacle_distances[i, j] = get_cell_distance(depth_meters,i, j)
             
     return colorized, prediction_grid, obstacle_distances
     
