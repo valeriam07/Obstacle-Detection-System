@@ -3,6 +3,8 @@ import numpy as np
 import time
 import sys
 import os
+import matplotlib.pyplot as plt
+from matplotlib import colors
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
 sys.path.append(parent_dir)
@@ -86,11 +88,28 @@ def get_cell_distance(depth_meters,sh,eh,sw,ew):
     
     return distance
 
-def predictFrame(frame, r, W, B):
+def predictFrame(frame, r, W, B, mode):
     depth_buf = frame.depth_data
     depth_meters = depth_buf / 1000.0  # convertir a metros
     depth_image = (depth_buf * (255.0 / r)).astype(np.uint8)
-    colorized = cv2.applyColorMap(depth_image, cv2.COLORMAP_RAINBOW)
+    depth_norm = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    
+    if (mode == "CLOSE"):
+        jet_r = plt.get_cmap("jet_r")
+        new_colors = jet_r(np.linspace(0.0, 1, 256))  # Usamos solo hasta el 70% del colormap
+        custom_cmap = colors.ListedColormap(new_colors)
+
+        # Aplicamos como siempre
+        depth_colored = custom_cmap(depth_norm)[:, :, :3]
+        depth_colored_rgb = (depth_colored * 255).astype(np.uint8)
+        colorized = cv2.cvtColor(depth_colored_rgb, cv2.COLOR_RGB2BGR)
+        #colorized = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
+    
+    elif (mode == "FAR"):
+        cmap = plt.get_cmap("YlOrRd_r")
+        depth_colored = cmap(depth_norm)[:, :, :3] 
+        depth_colored_rgb = (depth_colored * 255).astype(np.uint8)
+        colorized = cv2.cvtColor(depth_colored_rgb, cv2.COLOR_RGB2BGR)
     
     colorized_resized = cv2.resize(colorized, (120, 90))  #(width,height), original shape = (height=240, width=180)
     
@@ -125,7 +144,7 @@ def predictFrame(frame, r, W, B):
             
     return colorized, prediction_grid, obstacle_distances
     
-def start_detection():
+def start_detection(mode):
     print("Inicializando camara ToF...")
     cam = ac.ArducamCamera()
     ret = cam.open(ac.Connection.CSI, 0)
@@ -164,7 +183,7 @@ def start_detection():
         
         if frame and isinstance(frame, ac.DepthData):
             # Predecir frame
-            colorized, prediction_grid, obstacle_distances = predictFrame(frame, r, W, B)
+            colorized, prediction_grid, obstacle_distances = predictFrame(frame, r, W, B, mode)
             
             # Dibujar resultado 
             result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
