@@ -12,11 +12,25 @@ import model,utils
 
 import ArducamDepthCamera as ac  
 
-MAX_DISTANCE = 4000  # Distancia máxima de detección en mm
+MAX_DISTANCE = 4000  # Distancia máxima de detección (4m segun hoja de datos)
 GRID_SIZE = 9        # Grid 9x9
 
+def show_distances(image, obstacle_distance, x1, y1):
+    dist = obstacle_distance
+    cv2.putText(
+        image,
+        f"{dist:.2f} m",
+        (x1 + 2, y1 + 12),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.2,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA
+    )
+    return image
+
 # Forma de visualizar las zonas detectadas como obstaculo dentro del grid de la imagen
-def draw_grid_overlay(image, prediction_grid):
+def draw_grid_overlay(image, prediction_grid, obstacle_distances):
     h, w, _ = image.shape
     cell_h = h // GRID_SIZE
     cell_w = w // GRID_SIZE
@@ -33,6 +47,10 @@ def draw_grid_overlay(image, prediction_grid):
                 color = (0, 0, 255)  # Rojo si hay obstáculo
 
             cv2.rectangle(image, (x1, y1), (x2, y2), color, 1)
+            
+            # Mostrar distancia de las celdas con obstaculo
+            if obstacle_distances[i,j] >= 0:
+                show_distances(image, obstacle_distances[i,j], x1, y1)
 
     return image
 
@@ -54,20 +72,11 @@ def draw_obstacle_overlay(image, prediction_grid, obstacle_distances):
 
                 # Dibujar rectangulo celeste
                 cv2.rectangle(image, (x1, y1), (x2, y2), (255, 255, 0), 1)
-
+                
                 # Mostrar distancia de las celdas con obstaculo
                 if obstacle_distances[i,j] >= 0:
-                    dist = obstacle_distances[i, j]
-                    cv2.putText(
-                        image,
-                        f"{dist:.2f} m",
-                        (x1 + 2, y1 + 12),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.2,
-                        (255, 255, 255),
-                        1,
-                        cv2.LINE_AA
-                    )
+                    show_distances(image, obstacle_distances[i,j], x1, y1)
+                
     return image
     
 def show_fps(prev_time, result):
@@ -103,11 +112,14 @@ def get_cell_distance(depth_meters, i, j):
     return distance
 
 
-def predictFrame(frame, r, W, B, mode):
+def predictFrame(frame, r, W, B, mode):    
     depth_buf = frame.depth_data
     depth_meters = depth_buf / 1000.0  # convertir a metros
     depth_image = (depth_buf * (255.0 / r)).astype(np.uint8)
     depth_norm = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    
+    #h, w = depth_buf.shape
+    #print(f"[INFO] Resolucion de imagen capturada: {h}x{w}")
     
     if (mode == "CLOSE"):
         jet_r = plt.get_cmap("jet_r")
@@ -125,6 +137,10 @@ def predictFrame(frame, r, W, B, mode):
         depth_colored = cmap(depth_norm)[:, :, :3] 
         depth_colored_rgb = (depth_colored * 255).astype(np.uint8)
         colorized = cv2.cvtColor(depth_colored_rgb, cv2.COLOR_RGB2BGR)
+        
+    else:
+        print("[ERROR] El modo de operacion seleccionado es invalido")
+        return 
     
     colorized_resized = cv2.resize(colorized, (120, 90))  #(width,height), original shape = (height=240, width=180)
     
@@ -160,16 +176,17 @@ def predictFrame(frame, r, W, B, mode):
     return colorized, prediction_grid, obstacle_distances
     
 def start_detection(mode):
+    start = time.time()
     print("Inicializando camara ToF...")
     cam = ac.ArducamCamera()
     ret = cam.open(ac.Connection.CSI, 0)
     if ret != 0:
-        print("Error al abrir la camara:", ret)
+        print("[ERROR] Error al abrir la camara:", ret)
         return
 
     ret = cam.start(ac.FrameType.DEPTH)
     if ret != 0:
-        print("Error al iniciar la camara:", ret)
+        print("[ERROR] Error al iniciar la camara:", ret)
         cam.close()
         return
     
@@ -194,13 +211,21 @@ def start_detection(mode):
         pass 
 
     while True:
+        cycle_start = time.time() # Inicio del ciclo 
+        
         frame = cam.requestFrame(2000)
         
         if frame and isinstance(frame, ac.DepthData):
+            start_time = time.time() # Inicio del procesamiento
             # Predecir frame
             colorized, prediction_grid, obstacle_distances = predictFrame(frame, r, W, B, mode)
             
+            end_time = time.time()  # Fin del procesamiento
+            processing_time = end_time - start_time  # Tiempo de procesamiento
+            #print(f"[INFO] Tiempo de procesamiento {processing_time}")
+            
             # Dibujar resultado 
+            #result = draw_grid_overlay(colorized.copy(), prediction_grid, obstacle_distances)
             result = draw_obstacle_overlay(colorized.copy(), prediction_grid, obstacle_distances)
             
             # Guardar matriz de distancias de los obstaculos en un txt
@@ -208,7 +233,7 @@ def start_detection(mode):
             if current_time - last_write_time >= 5: # Cada 5s
                 with open("output/prediction_grid_log.txt", "a") as f:
                     for row in obstacle_distances:
-                        f.write(" ".join(map(str, row)) + "\n")
+                        f.write(" ".join(f"{x:.4f}" for x in row) + "\n")
                     f.write("\n")  # Linea vacia entre matrices
                 last_write_time = current_time
 
@@ -227,9 +252,14 @@ def start_detection(mode):
             cam.releaseFrame(frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
+                print(f"[INFO] El sistema estuvo en ejecucion durante {(time.time()-start)/60} minutos")
                 out.release()
                 break
-
+                
+        cycle_end = time.time() # Fin del ciclo
+        full_cycle_time = cycle_end - cycle_start
+        #print(f"[INFO] Duracion del ciclo {full_cycle_time}")
+    
     cam.stop()
     cam.close()
     cv2.destroyAllWindows()
