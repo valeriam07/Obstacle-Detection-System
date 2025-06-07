@@ -1,4 +1,4 @@
-import tensorflow as tf
+#import tensorflow as tf
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -8,40 +8,40 @@ import utils
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from algorithm import colorFilter
 
-# Etapa de convolucion de la CNN
-def convolution(image_bgr, kernel_size=5, stride=1):
-    """
-    :param image_bgr: imagen original en formato BGR
-    :param kernel_size: size de los patches (kxk pixeles)
-    :param stride: cuantos pixeles se mueve el parche al final de cada analisis 
-    """
+# # Etapa de convolucion de la CNN
+# def convolution(image_bgr, kernel_size=5, stride=1):
+    # """
+    # :param image_bgr: imagen original en formato BGR
+    # :param kernel_size: size de los patches (kxk pixeles)
+    # :param stride: cuantos pixeles se mueve el parche al final de cada analisis 
+    # """
 
-    # Convertir a tensor (batch, height, width, channels)
-    image = tf.expand_dims(image_bgr, axis=0)
+    # # Convertir a tensor (batch, height, width, channels)
+    # image = tf.expand_dims(image_bgr, axis=0)
 
-    # Extraer parches
-    patches = tf.image.extract_patches(
-        images=image,
-        sizes=[1, kernel_size, kernel_size, 1],
-        strides=[1, stride, stride, 1],
-        rates=[1, 1, 1, 1],
-        padding='VALID'
-    )
+    # # Extraer parches
+    # patches = tf.image.extract_patches(
+        # images=image,
+        # sizes=[1, kernel_size, kernel_size, 1],
+        # strides=[1, stride, stride, 1],
+        # rates=[1, 1, 1, 1],
+        # padding='VALID'
+    # )
 
-    patches_np = patches.numpy()
-    out = []
+    # patches_np = patches.numpy()
+    # out = []
 
-    # Recorrer cada patch y aplicar segmentRed
-    for row in patches_np[0]:
-        row_out = []
-        for patch_flat in row:
-            patch = patch_flat.reshape(kernel_size, kernel_size, 3)
-            mask = colorFilter.segmentRed(patch)
-            score = np.mean(mask) / 255.0  # Score = que tan "rojo" es el patch
-            row_out.append(score)
-        out.append(row_out)
+    # # Recorrer cada patch y aplicar segmentRed
+    # for row in patches_np[0]:
+        # row_out = []
+        # for patch_flat in row:
+            # patch = patch_flat.reshape(kernel_size, kernel_size, 3)
+            # mask = colorFilter.segmentRed(patch)
+            # score = np.mean(mask) / 255.0  # Score = que tan "rojo" es el patch
+            # row_out.append(score)
+        # out.append(row_out)
 
-    return np.array(out)
+    # return np.array(out)
 
 # Funcion de convolucion sin utilizar tensorflow (Opcion para RaspberryPi)
 def convolution_alt(image_bgr, kernel_size=5, stride=1):

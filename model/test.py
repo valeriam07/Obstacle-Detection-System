@@ -21,7 +21,7 @@ def predict(test_images, weights_path="weights.npy", bias_path="biases.npy"):
     for img in test_images:
 
         # Aplicar modelo 
-        conv = model.convolution(img, kernel_size=7, stride=3)
+        conv = model.convolution_alt(img, kernel_size=7, stride=3)
         relu = model.activation_relu(conv)
         pooled = model.pooling(relu, pool_size=2, stride=2)
 
