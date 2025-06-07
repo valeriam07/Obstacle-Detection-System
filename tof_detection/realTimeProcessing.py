@@ -130,7 +130,6 @@ def predictFrame(frame, r, W, B, mode):
         depth_colored = custom_cmap(depth_norm)[:, :, :3]
         depth_colored_rgb = (depth_colored * 255).astype(np.uint8)
         colorized = cv2.cvtColor(depth_colored_rgb, cv2.COLOR_RGB2BGR)
-        #colorized = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
     
     elif (mode == "FAR"):
         cmap = plt.get_cmap("YlOrRd_r")
@@ -172,7 +171,7 @@ def predictFrame(frame, r, W, B, mode):
             
             if pred == 1:  # 1 indica obstaculo
                 obstacle_distances[i, j] = get_cell_distance(depth_meters,i, j)
-            
+    
     return colorized, prediction_grid, obstacle_distances
     
 def start_detection(mode):
